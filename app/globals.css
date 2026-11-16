@@ -32,3 +32,22 @@
   .company-row>div:nth-child(3){grid-row:auto}
   .company-row>div:nth-child(4){text-align:left;justify-content:flex-start}
 }
+
+.first-action{margin:0 0 14px;font-size:13px}
+.row-action{font-size:12px;line-height:1.25;padding:10px;white-space:normal}
+.prep-form{margin:20px 0}
+.prep-form .field{max-width:360px}
+.question-list{margin:12px 0 18px}
+.draft-editor{display:block;min-height:180px;margin-top:10px}
+.draft-static{min-height:0}
+.workflow-nav button>div{min-width:0}
+[tabindex="-1"]:focus{outline:none}
+@media(max-width:760px){.row-action{grid-column:1/-1;width:100%}.draft-editor{min-height:255px}}
+
+.company-actions{display:grid;gap:6px;align-self:center}
+.company-actions .row-action{padding:6px 8px;text-align:left}
+@media(max-width:760px){.company-row>.company-actions{grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr));text-align:left}.company-actions .row-action{grid-column:auto;text-align:center}}
+.resume-library{margin:0 0 20px;padding:0 16px 4px;background:#f6f9fb;border:1px solid var(--line);border-radius:5px}
+.resume-library .field{max-width:360px}
+.resume-profile{border-top:1px solid var(--line);padding-bottom:4px}
+.resume-profile summary span{display:block;color:var(--muted);font-weight:400;margin:3px 0 0 15px}
