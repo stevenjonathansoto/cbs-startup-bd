@@ -15,7 +15,7 @@ Open the localhost URL printed by Next.js (normally http://127.0.0.1:3000). For 
 
 ## Demonstrate the workflow
 
-1. Open **Administrator** to start work timing, then click **Prepare 3 startup briefs**. This prepares all three briefs from supplied snapshots, with no live research.
+1. Open **Administrator** to start work timing, then click **Prepare 3 demo briefs**. This prepares all three briefs from supplied snapshots, with no live research.
 2. Open a startup. Inspect facts and uncertainty, then accept/edit/reject every proposed need. Explicitly validate the accepted set.
 3. Generate capability analysis. Inspect supporting evidence. Add **Production Kubernetes infrastructure expertise** in step 2 to demonstrate an evidence gap. Validate again and regenerate.
 4. Compare generic and tailored outreach, edit the tailored draft, and approve it as a draft or reject it for revision. Record quality scores and comparison judgments.
@@ -24,7 +24,7 @@ Open the localhost URL printed by Next.js (normally http://127.0.0.1:3000). For 
 
 All records and decisions are saved in this browser only. Relationship form edits require **Save relationship**; other review edits save automatically. Refresh pauses the timer and retains elapsed time. Moving to another tab pauses it; resume when returning. Local storage is not production multi-user storage. Do not enter real student data into this demo.
 
-The pipeline shows approved outreach drafts and follow-ups due. Timing, baseline comparisons and productivity are tucked into **Administrator**. This is a display panel, not an authenticated administrator role.
+The pipeline sorts relationships by attention, follow-up date, or opportunity stage. It shows follow-up coverage, completed follow-ups, recorded interactions, and sourced outreach triggers. Add other startups for relationship tracking. Automated analysis uses the three supplied fixtures. Timing, baseline comparisons, package counts, and average days from dated trigger to draft approval are tucked into **Administrator**. This is a display panel, not an authenticated administrator role.
 
 ## Completion and metrics
 

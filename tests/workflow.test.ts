@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { companies, resumes, evidence } from '../lib/fixtures';
 import { demoResearch, demoTalent, validateResearch, validateTalent, privacyIssues } from '../lib/analysis';
-import { initialState, setResearch, changeNeeds, validateNeeds, setTalent, current, complete, reviewDraft, saveRelationship, finishFollowUp, restore, tick, metrics, due, setContext, packageStatus } from '../lib/state';
+import { initialState, setResearch, changeNeeds, validateNeeds, setTalent, current, complete, reviewDraft, saveRelationship, finishFollowUp, restore, tick, metrics, due, setContext, packageStatus, addRelationship, suggestedDate, triggerLeadDays, outreachContext } from '../lib/state';
 function prepared(index=0){const c=companies[index];let r=initialState().records[c.id];r=setResearch(r,demoResearch(c),'Deterministic demo');r=changeNeeds(r,r.needs.map(n=>({...n,decision:'accepted'})));return validateNeeds(r);}
 function analyzed(index=0){const c=companies[index],r=prepared(index);return setTalent(r,demoTalent(c,r.needs,r.mode),'Deterministic demo');}
 test('fixtures contain exactly 3 startups, 5 resumes and 20 unique accomplishment IDs',()=>{assert.equal(companies.length,3);assert.equal(resumes.length,5);assert.equal(Object.keys(evidence).length,20);assert.equal(new Set(resumes.flatMap(r=>r.evidence.map(e=>e.id))).size,20);});
@@ -25,3 +25,39 @@ test('timer excludes processing and paused time and survives refresh without cou
 test('all work remains measured even when outputs are rejected; savings can be negative',()=>{const s=initialState();s.timer={ms:120000,measured:true,status:'stopped',baseline:'1'};for(let i=0;i<3;i++)s.records[companies[i].id]=reviewDraft(analyzed(i),true);let m=metrics(s);assert.equal(m.completed,3);assert.equal(m.saved,-1);assert.equal(m.percent,-100);assert.equal(m.productivity,90);s.records.briarpath=reviewDraft(s.records.briarpath,false);m=metrics(s);assert.equal(m.minutes,2);assert.equal(m.completed,2);assert.equal(m.saved,null);assert.equal(m.productivity,60);});
 test('no fabricated performance is seeded and missing baselines never show savings',()=>{const s=initialState(),m=metrics(s);assert.equal(m.completed,0);assert.equal(m.engaged,0);assert.equal(m.followedUp,0);assert.equal(m.saved,null);assert.equal(m.productivity,null);s.timer={ms:60000,measured:true,status:'stopped',baseline:''};assert.equal(metrics(s).saved,null);});
 test('all review decisions and quality ratings persist on reload',()=>{const s=initialState();let r=reviewDraft(analyzed(),true);r={...r,quality:{...r.quality,relevance:4,accuracy:5,persuasion:3,note:'Clear links to needs'}};s.records[r.id]=r;const loaded=restore(JSON.stringify(s));assert(complete(loaded.records[r.id]));assert.equal(loaded.records[r.id].quality.accuracy,5);assert.equal(loaded.records[r.id].draft,r.draft);assert.throws(()=>restore('{bad json'));});
+
+test('named outreach uses a sourced trigger and a single concise next step',()=>{
+  const r=prepared();
+  const context={owner:'Taylor Morgan',trigger:'your expansion announcement',triggerSource:'Company newsroom',triggerDate:'2026-10-01',lastInteraction:''};
+  const draft=demoTalent(companies[0],r.needs,r.mode,'','Prospect',context).tailored;
+  assert.equal(draft.split('\n').length,5);
+  assert.match(draft,/your expansion announcement/);
+  assert.match(draft,/Best, Taylor Morgan$/);
+  assert.equal(draft.match(/\?/g)?.length,1);
+  const unknown=demoTalent(companies[0],r.needs,r.mode,'','Prospect',{...context,triggerSource:''}).tailored;
+  assert.doesNotMatch(unknown,/expansion announcement/);
+});
+
+test('sourced trigger, suggested date, and added company survive storage without contact events',()=>{
+  let r=addRelationship('New startup');
+  r=saveRelationship(r,{...r.relationship,trigger:'Company update',triggerSource:'Company newsroom',triggerDate:'2026-10-01',status:'Nurture',followUpDays:'12'});
+  assert.equal(suggestedDate(r.relationship,'2026-10-02'),'2026-10-14');
+  assert.equal(r.relationship.followUp,'');
+  assert.equal(r.interactions.length,0);
+  const state=initialState();
+  state.records[r.id]=r;
+  assert.equal(restore(JSON.stringify(state)).records[r.id].name,'New startup');
+  assert.throws(()=>saveRelationship(r,{...r.relationship,triggerSource:''}));
+  assert.throws(()=>saveRelationship(r,{...r.relationship,alumni:'An alum'}));
+});
+
+test('trigger lead time is measured only for a current approved draft',()=>{
+  let r=prepared();
+  r=saveRelationship(r,{...r.relationship,owner:'Taylor Morgan',trigger:'Company update',triggerSource:'Company newsroom',triggerDate:'2026-10-01'});
+  r=setTalent(r,demoTalent(companies[0],r.needs,r.mode,'','Prospect',outreachContext(r.relationship)),'Deterministic demo');
+  assert.equal(triggerLeadDays(r),null);
+  r={...reviewDraft(r,true),approvedOn:'2026-10-06'};
+  assert.equal(triggerLeadDays(r),5);
+  r=saveRelationship(r,{...r.relationship,trigger:'New company update'});
+  assert.equal(triggerLeadDays(r),null);
+});

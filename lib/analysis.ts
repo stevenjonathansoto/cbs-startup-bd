@@ -39,21 +39,33 @@ export function assess(needs: Need[]): Talent['coverage'] {
     return rule ? { needId: n.id, status: rule.status ?? 'supported', evidenceIds: rule.ids, explanation: rule.status === 'partial' ? 'Adjacent evidence only. Direct strategic partnership ownership is not demonstrated.' : 'Direct supporting bullets in the synthetic fixtures. This does not establish student availability or domain expertise.', capability: rule.capability, benefit: rule.benefit } : { needId: n.id, status: 'unsupported', evidenceIds: [], explanation: 'Evidence gap: no verified mapping for this requirement in the five synthetic resumes. This conservative demo does not infer support from keywords. Rephrase to a supplied capability or retain this gap for review.', capability: '', benefit: '' };
   });
 }
-export function compose(company: Company, coverage: Talent['coverage'], mode: Mode, instructions = '', relationshipStatus = 'Prospect'): Talent {
+export const outreachContextSchema = z.object({
+  owner: z.string().max(120), trigger: z.string().max(300), triggerSource: z.string().max(300),
+  triggerDate: z.string(), lastInteraction: z.string(),
+});
+export type OutreachContext = z.infer<typeof outreachContextSchema>;
+export function compose(company: Company, coverage: Talent['coverage'], mode: Mode, instructions = '', relationshipStatus = 'Prospect', context?: OutreachContext): Talent {
   const matched = coverage.filter(c => c.status !== 'unsupported');
-  const focus = /brief|concise|short/i.test(instructions) ? matched.slice(0,2) : matched;
-  const summary = focus.length ? focus.map(c => `${c.capability}: could ${c.benefit}.`).join('\n') : 'The reviewed synthetic evidence does not establish capabilities for the validated requirements.';
-  const gap = coverage.some(c => c.status === 'unsupported') ? '\nSome requested capabilities are not established in this demonstration; we would need to verify them before discussing fit.' : '';
-  const cta = mode === 'Hiring now' ? 'Would a short conversation help clarify the confirmed scope and the next step through an approved CBS recruiting process?' : 'Even if hiring is not on your immediate roadmap, would a short conversation about these business priorities be useful? We could reconnect when the timing is right.';
+  const focus = /brief|concise|short/i.test(instructions) ? matched.slice(0,1) : matched.slice(0,2);
+  const summary = focus.length ? focus.map(c => c.capability).join(' and ') : 'No supported capability was identified.';
+  const reason = context?.trigger.trim() && context.triggerSource.trim()
+    ? 'I’m reaching out about ' + context.trigger.trim().replace(/[.!?]+$/, '') + '.'
+    : context?.lastInteraction ? 'Thanks for speaking with me on ' + context.lastInteraction + '.'
+    : relationshipStatus === 'Engaged' ? 'I’m reaching out from Columbia Business School to stay in touch.'
+    : 'I work with employers at Columbia Business School.';
+  const hello = 'Hello ' + company.name + ' team,';
+  const signature = 'Best, ' + (context?.owner.trim() || '[Your name]');
+  const value = focus.length ? 'If you’re exploring ' + summary + ', I’d be glad to compare approaches with you.' : 'I’d be glad to hear what your team is prioritizing.';
+  const next = mode === 'Hiring now' ? 'Would 15 minutes next week work to discuss the scope?' : 'Would you have 15 minutes next week to talk?';
   return {
     coverage, summary,
-    generic: `Hello ${company.name} team,\n\nI’m reaching out from Columbia Business School’s Career Management Center to explore whether MBA talent could support your team. A recruiting conversation could help us understand your priorities and discuss relevant business capabilities.\n\nWould you be open to a brief introduction?\n\nBest,\nCMC`,
-    tailored: `Hello ${company.name} team,\n\nWe would welcome a conversation to check whether the priorities below reflect your needs. These are discussion hypotheses, not confirmed requirements.\n\n${summary}${gap}\n\nThese examples illustrate potential capability areas using synthetic data; actual student experience, interest and availability would need verification.\n\n${cta}\n\nBest,\nCMC`,
-    nextAction: relationshipStatus === 'Inactive' ? 'Review whether re-engagement is appropriate before contacting the employer.' : mode === 'Hiring now' ? 'Confirm scope, student involvement and an agreed next step; then discuss the approved recruiting process.' : 'Offer a short priorities conversation and agree a suitable time to reconnect; do not assume headcount.',
+    generic: [hello, 'I work with employers at Columbia Business School.', 'I’d be glad to discuss how you might work with MBA talent.', next, signature].join('\n'),
+    tailored: [hello, reason, value, next, signature].join('\n'),
+    nextAction: relationshipStatus === 'Inactive' ? 'Review whether re-engagement is appropriate before contacting the employer.' : 'Check the outreach draft and agree on a next step with the employer.',
   };
 }
-export function demoTalent(company: Company, needs: Need[], mode: Mode, instructions = '', relationshipStatus = 'Prospect'): Talent {
-  return validateTalent(compose(company, assess(needs), mode, instructions, relationshipStatus), needs);
+export function demoTalent(company: Company, needs: Need[], mode: Mode, instructions = '', relationshipStatus = 'Prospect', context?: OutreachContext): Talent {
+  return validateTalent(compose(company, assess(needs), mode, instructions, relationshipStatus, context), needs);
 }
 export function validateResearch(value: unknown, company: Company): Research {
   const result = researchSchema.parse(value);
@@ -93,5 +105,5 @@ export function validateTalent(value: unknown, needs: Need[]): Talent {
   if (privacyIssues([result.summary, result.generic, result.tailored].join('\n')).length) throw new Error('Founder-facing output failed privacy checks.');
   return result;
 }
-export const inputSchema = z.object({ companyId: z.enum(['briarpath','caldera','harborwell']), stage: z.enum(['research','talent']), needs: z.array(needSchema).max(30).default([]), mode: z.enum(['Nurture for later','Hiring now']).default('Nurture for later'), instructions: z.string().max(1500).default(''), relationshipStatus: z.enum(['Prospect','Exploratory','Engaged','Hiring now','Nurture','Inactive']).default('Prospect') });
+export const inputSchema = z.object({ companyId: z.enum(['briarpath','caldera','harborwell']), stage: z.enum(['research','talent']), needs: z.array(needSchema).max(30).default([]), mode: z.enum(['Nurture for later','Hiring now']).default('Nurture for later'), instructions: z.string().max(1500).default(''), outreach: outreachContextSchema.optional(), relationshipStatus: z.enum(['Prospect','Exploratory','Engaged','Hiring now','Nurture','Inactive']).default('Prospect') });
 export const getCompany = (id: string) => companies.find(c => c.id === id)!;

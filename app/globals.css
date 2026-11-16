@@ -24,3 +24,11 @@
 .admin-note{grid-column:1/-1;margin:0!important}
 @media(max-width:1000px){.table-header,.company-row{grid-template-columns:1.6fr 1fr 1.3fr 1fr 95px;gap:10px}.batch-action{max-width:250px}.pipeline-summary{gap:28px}}
 @media(max-width:760px){.shell{padding-top:26px}.pipeline-heading{gap:18px}.batch-action{max-width:none;align-items:flex-start;text-align:left}.pipeline-summary{flex-direction:column;gap:18px;margin-bottom:22px}.table-header{display:none}.company-row{grid-template-columns:1fr 1fr;gap:15px}.company-cell{padding-right:0}.open-button{position:static;grid-column:1/-1;width:100%;font-size:12px}.admin-results{grid-template-columns:1fr 1fr}.admin-toggle{font-size:11px;padding:5px}.masthead{gap:10px}.brand strong{font-size:16px}}
+
+.company-row>div{min-width:0;overflow-wrap:anywhere}
+.section-heading select{margin-left:6px;border:1px solid var(--line);border-radius:4px;padding:6px;background:white}
+@media(max-width:760px){
+  .company-row>div:first-child,.company-row>div:nth-child(2){grid-column:1/-1}
+  .company-row>div:nth-child(3){grid-row:auto}
+  .company-row>div:nth-child(4){text-align:left;justify-content:flex-start}
+}
