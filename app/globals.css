@@ -60,3 +60,7 @@
 .pipeline-toolbar h2,.pipeline-toolbar>button{white-space:nowrap}
 .pipeline-toolbar label{max-width:100%}
 .pipeline-toolbar input[type=search]{width:180px}
+
+.pipeline-summary{justify-content:center;text-align:center}
+.pipeline-summary>div{grid-template-columns:auto minmax(0,max-content);justify-content:center}
+@media(max-width:760px){.pipeline-summary{align-items:center}}
