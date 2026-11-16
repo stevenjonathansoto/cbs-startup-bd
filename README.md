@@ -104,3 +104,9 @@ See `TEST-RESULTS.md` for executed checks and browser verification.
 Reviewer ratings and preparation time can be explored here. Employer responses, conversion and verified student offers require a future authorized operational pilot and real evidence.
 
 Implementation references: [Next.js static exports](https://nextjs.org/docs/app/guides/static-exports) and [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+
+## Existing relationship examples and portfolio import
+
+A fresh browser or **Reset demo** loads three fictional examples: Briarpath as a new prospect, CalderaLoop with a prior expansion conversation and an overdue check-in, and Harborwell with a founder-confirmed analytics need and an upcoming scoping call. Existing browser records are preserved. The two seeded histories are labeled fictional and are excluded from recorded interactions and new confirmation counts. An opportunity is attributed to an existing relationship if a prior conversation was already recorded when staff confirmed it.
+
+CSV import is the first next-phase capability. The relationship model already stores company name, owner, contact, status, last interaction date, notes, confirmed need, next action, and due date. Add a preview that validates dates and statuses, flags normalized company-name duplicates for review, and appends only explicitly accepted rows. Imported history should be labeled as prior history and excluded from new engagement counts. No actual CMC portfolio has been imported.

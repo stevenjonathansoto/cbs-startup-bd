@@ -51,3 +51,12 @@
 .resume-library .field{max-width:360px}
 .resume-profile{border-top:1px solid var(--line);padding-bottom:4px}
 .resume-profile summary span{display:block;color:var(--muted);font-weight:400;margin:3px 0 0 15px}
+
+.relationship-summary{margin-bottom:18px;padding:16px 20px}
+.relationship-summary .section-heading{margin:0 0 8px}
+.section-heading input[type=search]{border:1px solid var(--line);border-radius:4px;padding:6px;margin-left:6px;max-width:100%}
+
+.pipeline-toolbar{flex-wrap:wrap}
+.pipeline-toolbar h2,.pipeline-toolbar>button{white-space:nowrap}
+.pipeline-toolbar label{max-width:100%}
+.pipeline-toolbar input[type=search]{width:180px}

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { companies, resumes, evidence } from '../lib/fixtures';
 import { demoResearch, demoTalent, validateResearch, validateTalent, privacyIssues } from '../lib/analysis';
-import { initialState, setResearch, changeNeeds, validateNeeds, setTalent, current, complete, reviewDraft, saveRelationship, finishFollowUp, restore, tick, metrics, due, setContext, packageStatus, addRelationship, suggestedDate, triggerLeadDays, outreachContext } from '../lib/state';
+import { initialState, demoState, setResearch, changeNeeds, validateNeeds, setTalent, current, complete, reviewDraft, saveRelationship, finishFollowUp, restore, tick, metrics, due, setContext, packageStatus, addRelationship, suggestedDate, triggerLeadDays, outreachContext } from '../lib/state';
 function prepared(index=0){const c=companies[index];let r=initialState().records[c.id];r=setResearch(r,demoResearch(c),'Deterministic demo');r=changeNeeds(r,r.needs.map(n=>({...n,decision:'accepted'})));return validateNeeds(r);}
 function analyzed(index=0){const c=companies[index],r=prepared(index);return setTalent(r,demoTalent(c,r.needs,r.mode),'Deterministic demo');}
 test('fixtures contain exactly 3 startups, 5 resumes and 20 unique accomplishment IDs',()=>{assert.equal(companies.length,3);assert.equal(resumes.length,5);assert.equal(Object.keys(evidence).length,20);assert.equal(new Set(resumes.flatMap(r=>r.evidence.map(e=>e.id))).size,20);});
@@ -60,4 +60,58 @@ test('trigger lead time is measured only for a current approved draft',()=>{
   assert.equal(triggerLeadDays(r),5);
   r=saveRelationship(r,{...r.relationship,trigger:'New company update'});
   assert.equal(triggerLeadDays(r),null);
+});
+
+test('demo starts with three distinct relationships and excludes seeded history from engagement counts',()=>{
+  const state=demoState('2026-11-16');
+  assert.equal(state.records.briarpath.relationship.lastInteraction,'');
+  assert.equal(due(state.records.caldera.relationship.followUp,'2026-11-16'),'overdue');
+  assert.equal(due(state.records.harborwell.relationship.followUp,'2026-11-16'),'scheduled');
+  assert.equal(metrics(state).relationshipActions,0);
+  assert.equal(metrics(state).existingOpportunities,0);
+  assert.equal(restore(JSON.stringify(state)).records.caldera.relationship.sampleHistory,true);
+});
+test('prior-context follow-up and confirmed-needs outreach work without repeating company research',()=>{
+  const state=demoState('2026-11-16');
+  const out=(index:number,id:string)=>{
+    const r=state.records[id];
+    assert.equal(r.research,null);
+    assert.equal(r.validated,true);
+    return demoTalent(companies[index],r.needs,r.mode,r.instructions,r.relationship.status,outreachContext(r.relationship));
+  };
+  assert.match(out(1,'caldera').tailored,/commercial expansion plans/);
+  assert.match(out(2,'harborwell').tailored,/customer analytics/);
+  assert.equal(out(2,'harborwell').coverage[0].status,'supported');
+  const harbor=state.records.harborwell;
+  const researched=setResearch(harbor,demoResearch(companies[2]),'Deterministic demo');
+  assert.deepEqual(researched.needs,harbor.needs);
+});
+test('Harborwell shows a supported confirmed need and a gap, with savings for a matched one-draft baseline',()=>{
+  const s=demoState('2026-11-16');
+  let r=s.records.harborwell;
+  const t=demoTalent(companies[2],r.needs,r.mode,r.instructions,r.relationship.status,outreachContext(r.relationship));
+  assert.deepEqual(t.coverage.map(item=>item.status),['supported','unsupported']);
+  assert.equal(t.coverage[1].evidenceIds.length,0);
+  assert.doesNotMatch(t.tailored,/Kubernetes|R05-E1/);
+  r=setTalent(r,t,'Deterministic demo');
+  s.records.harborwell=reviewDraft(r,true);
+  s.timer={ms:180000,measured:true,status:'stopped',baseline:'2',baselineDrafts:1};
+  assert.equal(metrics(s).saved,-1);
+  s.timer.baseline='';
+  assert.equal(metrics(s).saved,null);
+});
+
+test('approval survives unchanged needs, settings and follow-up-only edits',()=>{
+  const approved=reviewDraft(analyzed(),true);
+  assert.equal(changeNeeds(approved,structuredClone(approved.needs)),approved);
+  assert.equal(setContext(approved,approved.mode,approved.instructions),approved);
+  const saved=saveRelationship(approved,{...approved.relationship,nextAction:'Schedule a scoping call'});
+  assert(complete(saved));
+});
+
+test('a valid-looking evidence reference must be an actual resume ID',()=>{
+  const r=analyzed();
+  const invalid=structuredClone(r.analysis!);
+  invalid.coverage[0].evidenceIds=['constructor'];
+  assert.throws(()=>validateTalent(invalid,r.needs),/Fabricated resume evidence/);
 });
