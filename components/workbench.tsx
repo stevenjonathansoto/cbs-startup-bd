@@ -62,6 +62,7 @@ export default function Workbench(){
   const m=metrics(state),r=selected?state.records[selected]:null,fixture=companies.find(c=>c.id===selected);
   const c=fixture??(r?.name?{id:r.id,name:r.name,industry:'',stage:'',location:''}:null);
   const records=Object.values(state.records);
+  const companiesWithoutQuestions=companies.filter(company=>!state.records[company.id].research);
   const leadTimes=records.map(triggerLeadDays).filter((days):days is number=>days!==null);
   const rows=records.map(item=>({item,name:companies.find(company=>company.id===item.id)?.name??item.name??item.id}));
   const attention=(item:RecordState)=>{
@@ -118,28 +119,33 @@ export default function Workbench(){
       {message&&<div role="status" className="notice success">{message}</div>}
       {busy&&<div role="status" className="notice"><span className="spinner"/>{busy}</div>}
       {!selected?<>
-        <div className="page-heading pipeline-heading"><div><h1>Startup Relationships</h1><p>Research companies, prepare employer emails, and manage follow-ups to uncover recruiting opportunities for CBS students.</p></div><div className="batch-action"><button disabled={!!busy||companies.every(c=>state.records[c.id].research)} onClick={()=>run(companies.filter(c=>!state.records[c.id].research).map(c=>c.id),'research')}>{companies.every(c=>state.records[c.id].research)?'Company research ready':companies.some(c=>state.records[c.id].research)?'Research remaining companies':'Research all 3 demo companies'}</button></div></div>
+        <div className="page-heading pipeline-heading"><div><h1>Startup Relationships</h1><p>Research companies, prepare employer emails, and manage follow-ups to uncover recruiting opportunities for CBS students.</p></div><div className="batch-action">
+          {companiesWithoutQuestions.length>0
+            ? <button disabled={!!busy} onClick={()=>run(companiesWithoutQuestions.map(company=>company.id),'research')}>Suggest questions for {companiesWithoutQuestions.length} {companiesWithoutQuestions.length===1?'demo company':'demo companies'}</button>
+            : <Badge tone="green">Questions ready for all 3 demo companies</Badge>}
+        </div></div>
         <section className="pipeline-summary" aria-label="Relationship progress">
           <div><strong>{m.due+m.overdue}</strong><span>follow-ups due</span><small>{m.overdue} overdue · {m.due} due today</small></div>
           <div><strong>{records.filter(r=>r.relationship.followUp&&r.relationship.owner&&r.relationship.nextAction&&r.relationship.status!=='Inactive').length} of {records.filter(r=>r.relationship.status!=='Inactive').length}</strong><span>active relationships with a scheduled follow-up</span></div>
           <div><strong>{m.engaged}</strong><span>relationships with a recorded interaction</span><small>{m.followedUp} completed follow-ups</small></div>
         </section>
         <div className="section-heading"><h2>What needs attention</h2><label>Sort by <select value={sort} onChange={e=>setSort(e.target.value)}><option value="attention">Overdue and needs attention</option><option value="date">Follow-up date</option><option value="stage">Relationship stage</option></select></label></div>
-        {records.every(item=>!item.research&&!item.relationship.nextAction)&&<p className="first-action">Try Research company for Briarpath Systems.</p>}
+        {records.every(item=>!item.research&&!item.relationship.nextAction)&&<p className="first-action">Start with Briarpath Systems to find out what to ask in a first employer conversation.</p>}
         <div className="pipeline-table">
           <div className="table-header"><span>Company</span><span>Why now?</span><span>Next action / follow-up</span><span>Outreach status</span><span/></div>
           {rows.map(({item,name})=>{
             const rel=item.relationship, follow=due(rel.followUp);
             const company=companies.find(c=>c.id===item.id);
             const recommended=nextStep(item);
-            const nextLabel=!company||recommended===5 ? (!rel.owner.trim()?'Assign an owner':!rel.nextAction.trim()?'Set the next action':'Schedule follow-up') : ['Review company context','Review suggested needs','Find relevant CBS experience','Review the email draft'][recommended-1];
+            const questionAction=item.research?'Review questions':'Prepare questions';
+            const nextLabel=!company||recommended===5 ? (!rel.owner.trim()?'Assign an owner':!rel.nextAction.trim()?'Set the next action':'Schedule follow-up') : ['Prepare questions to ask','Review questions to ask','Find relevant CBS experience','Review the email draft'][recommended-1];
             return <article className="company-row" key={item.id}>
               <div><button className="company-link" onClick={()=>open(item.id)}>{name}</button>{company&&<p>{company.industry} · {company.stage}</p>}<p>{relationshipLabel(rel.status)} · {rel.owner||'Unassigned'}</p><p className="small">{relationshipLabel(rel.stage)}</p></div>
               <div><strong>{rel.trigger||'Trigger unknown'}</strong>{rel.trigger&&<p>{rel.triggerSource}{rel.triggerDate&&' · '+rel.triggerDate}</p>}<p>{rel.alumni?'Alumni: '+rel.alumni+' · '+rel.alumniSource:'Alumni connection unknown'}</p></div>
               <div><p>{rel.nextAction||nextLabel}</p><span className={'follow-up '+follow}>{rel.followUp?(follow==='overdue'?'Overdue · ':follow==='due'?'Due today · ':'')+rel.followUp:rel.nextAction&&rel.status!=='Inactive'?nextLabel:''}</span></div>
               <div><Badge tone={complete(item)?'green':item.analysis&&!current(item)?'amber':'neutral'}>{item.name?'Follow-ups only':outreachStatus(item)}</Badge></div>
               <div className="company-actions">
-                {company&&<button className={recommended<=2?'primary row-action':'row-action'} aria-label={'Research company: '+name} onClick={()=>open(item.id,item.research&&!item.validated?2:1)}>Research company</button>}
+                {company&&<button className={recommended<=2?'primary row-action':'row-action'} aria-label={questionAction+' for '+name} onClick={()=>open(item.id,1)}>{questionAction}</button>}
                 {company&&<button className={recommended===3||recommended===4?'primary row-action':'row-action'} aria-label={'Prepare email: '+name} onClick={()=>open(item.id,item.analysis?4:3)}>Prepare email</button>}
                 <button className={recommended===5?'primary row-action':'row-action'} aria-label={'Manage follow-ups: '+name} onClick={()=>open(item.id,5)}>Manage follow-ups</button>
               </div>
@@ -152,12 +158,26 @@ export default function Workbench(){
             <button type="submit" disabled={!newName.trim()}>Add relationship</button>
           </form>
         </details>
+        <div className="panel-footer">
+          <button type="button" disabled={!!busy} onClick={()=>{
+            if(!window.confirm('Reset this demo? This clears company research, email drafts, follow-ups, and measurements saved in this browser.'))return;
+            storageBlocked.current=false;
+            lastTick.current=Date.now();
+            setState(initialState());
+            setTiming(false);
+            setSort('attention');
+            setNewName('');
+            setEngine('demo');
+            setError('');
+            setMessage('Demo reset. The three sample companies are ready for a fresh walkthrough.');
+          }}>Reset demo</button>
+        </div>
         {timing&&!staticDemo&&<details className="secondary-details"><summary>Research settings</summary><div className="detail-body"><Field label="Processing mode"><select value={engine} onChange={e=>setEngine(e.target.value)} disabled={!!busy}><option value="demo">Deterministic demo · no API key required</option><option value="server">Server AI · requires local OPENAI_API_KEY</option></select></Field><p>Without a configured server key, the server returns explicitly labeled deterministic results. API failures are shown as errors, never as successful generations.</p></div></details>}
       </>:r&&c?<>
         <div className="page-heading"><div><div className="eyebrow">STARTUP WORKSPACE {c.stage&&<> / {c.stage.toUpperCase()}</>}</div><h1>{c.name}</h1>{fixture&&<p>{fixture.industry} · {fixture.location}</p>}</div><div className="heading-status"><Badge tone={complete(r)?'green':'blue'}>{fixture?outreachStatus(r):'Follow-ups only'}</Badge><span className="small muted">{relationshipLabel(r.relationship.stage)}</span></div></div>
         <div className="workspace-grid"><aside className="workflow-nav" aria-label="Company tasks">
           {(fixture?[
-            {label:'Company research',target:r.research&&!r.validated?2:1,active:step<=2,status:r.validated?'Needs reviewed by CMC':r.research?'Ready for review':'Research not started'},
+            {label:'Company research',target:r.research&&!r.validated?2:1,active:step<=2,status:r.validated?'Needs reviewed by CMC':r.research?'Questions ready':'No questions prepared'},
             {label:'CBS student experience',target:3,active:step===3,status:current(r)?'Experience found':r.analysis?'Needs updating':'Find relevant experience'},
             {label:'Email draft',target:4,active:step===4,status:outreachStatus(r)},
           ]:[]).concat({label:'Follow-ups',target:5,active:step===5,status:r.relationship.followUp?'Follow-up planned':r.followUpsCompleted.length?'Follow-up completed':'No follow-up planned'}).map(task=>
@@ -165,10 +185,10 @@ export default function Workbench(){
           )}
         </aside>
         <div className="workflow-main"><fieldset disabled={!!busy} className="workflow-fieldset">
-          {step===1&&fixture&&<section className="panel"><StepTitle title={workflowLabels[0]} subtitle="Use the company context to prepare questions that could uncover a recruiting opportunity."/><p className="company-description">{fixture.description}</p>{!r.research?<><button className="primary" onClick={()=>run([c.id],'research')}>Research this company</button></>:<>
+          {step===1&&fixture&&<section className="panel"><StepTitle title={workflowLabels[0]} subtitle="Use the company context to prepare questions that could uncover a recruiting opportunity."/><p className="company-description">{fixture.description}</p>{!r.research?<><button className="primary" onClick={()=>run([c.id],'research')}>Suggest questions to ask</button></>:<>
             <div className="section-heading"><h3>Suggested discovery questions</h3><Badge tone="amber">Awaiting employer confirmation</Badge></div>
             <ul className="question-list">{r.research.needs.map(n=><li key={n.id}>Is {n.text.charAt(0).toLowerCase()+n.text.slice(1).replace(/[?.!]+$/,'')} a priority for your team?</li>)}</ul>
-            <p>Choose which questions are worth bringing to the employer.</p><button className="primary" onClick={()=>goToStep(2)}>Review suggestions</button>
+            <p>Choose which questions are worth bringing to the employer.</p><button className="primary" onClick={()=>goToStep(2)}>Choose questions to ask</button>
           </>}
           <details className="secondary-details"><summary>Company notes and sources</summary><div className="facts">{fixture.facts.map(f=><div key={f.id}><code>{f.id}</code><p>{f.text}</p></div>)}</div>{r.research&&<><ul>{r.research.needs.map(n=><li key={n.id}>{n.rationale} ({n.sources.join(', ')})</li>)}</ul><h3>Still unknown</h3><ul>{r.research.unknowns.map(u=><li key={u}>{u}</li>)}</ul><p>{r.research&&'Prepared using '+r.provider+'.'}</p></>}<p>Fictional company notes. The prototype uses these supplied sources.</p></details></section>}
           {step===2&&<section className="panel"><StepTitle title={workflowLabels[1]} subtitle="Keep, edit, or reject topics to explore. Record any need the employer confirms in the relationship form."/>{!r.research?<Empty>Research the company first.</Empty>:<><div className="review-help"><p>Mark each suggested topic Keep or Skip. Kept topics guide the search for relevant CBS skills.</p><button onClick={()=>safeUpdate(r.id,old=>changeNeeds(old,old.needs.map(n=>({...n,decision:'accepted'}))))}>Keep all topics</button></div>{r.needs.map(n=><div className={`need-editor ${n.decision}`} key={n.id}><Field label="Potential company need"><input aria-label={`Business need ${n.id}`} value={n.text} maxLength={300} onChange={e=>update(r.id,old=>changeNeeds(old,old.needs.map(x=>x.id===n.id?{...x,text:e.target.value,rationale:'Edited by CMC; original source references retained for review. This remains a hypothesis, not employer confirmation.',decision:'pending'}:x)))}/></Field><p>{n.rationale}</p><div className="need-meta"><span className="small muted">{n.sources.length?`Source: ${n.sources.join(', ')}`:'Added by CMC'}</span><div className="segmented"><button aria-pressed={n.decision==='accepted'} onClick={()=>update(r.id,old=>changeNeeds(old,old.needs.map(x=>x.id===n.id?{...x,decision:'accepted'}:x)))}>Keep</button><button aria-pressed={n.decision==='rejected'} onClick={()=>update(r.id,old=>changeNeeds(old,old.needs.map(x=>x.id===n.id?{...x,decision:'rejected'}:x)))}>Skip</button></div></div><Badge tone={n.decision==='accepted'?'green':n.decision==='rejected'?'neutral':'amber'}>{n.decision}</Badge></div>)}<AddNeed onAdd={text=>update(r.id,old=>changeNeeds(old,[...old.needs,{id:`custom-${Date.now()}`,text,rationale:'Suggested by CMC.',sources:[],decision:'pending'}]))}/><div className="panel-footer"><span className="small">{r.needs.filter(n=>n.decision==='accepted').length} kept · {r.needs.filter(n=>n.decision==='pending').length} to review · {r.needs.filter(n=>n.decision==='rejected').length} skipped</span><button className="primary" disabled={!r.validated&&(!r.needs.some(n=>n.decision==='accepted')||r.needs.some(n=>n.decision==='pending'||!n.text.trim()))} onClick={()=>{
